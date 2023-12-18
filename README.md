@@ -52,7 +52,7 @@ python decrypt.py
 
 ## Contributors
 
-- Your Name (@yourusername)
+- Lateef (@lateefcode2101)
 
 ## License
 
