@@ -3,14 +3,24 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+import getpass
 
-def read_key_from_file(filename, key_type):
+def read_key_from_file(filename, key_type, password=None):
     with open(filename, 'rb') as file:
         key_bytes = file.read().strip()
         if key_type == 'aes':
             return key_bytes
         elif key_type == 'rsa_private':
-            return serialization.load_pem_private_key(key_bytes, password=None, backend=default_backend())
+            for _ in range(3):  # Allow three attempts
+                try:
+                    private_key = serialization.load_pem_private_key(
+                        key_bytes, password=password, backend=default_backend()
+                    )
+                    return private_key
+                except ValueError:
+                    print("Wrong password. Please try again.")
+            print("Too many wrong attempts. Exiting.")
+            exit(1)
         elif key_type == 'rsa_public':
             return serialization.load_pem_public_key(key_bytes, backend=default_backend())
         else:
@@ -67,18 +77,29 @@ def decrypt_rsa(ciphertext_rsa, private_key):
 aes_key_file = 'aes-256-key.txt'
 rsa_private_key_file = 'private_key.pem'
 rsa_public_key_file = 'public_key.pem'
+message_file = 'message.txt'
+
+# Original message to be encrypted
+def read_message_from_file_or_input(file_path):
+    if os.path.isfile(file_path):
+        with open(file_path, 'rb') as file:
+            return file.read()
+    else:
+        return input("Enter the message: ").encode('utf-8')
+
+
+original_message = read_message_from_file_or_input(message_file)
 
 # Read AES key from file
 aes_key = read_key_from_file(aes_key_file, 'aes')
 
 # Read RSA private key from file
-private_key = read_key_from_file(rsa_private_key_file, 'rsa_private')
+password = input("Enter the password for the private key: ").encode('utf-8')
+private_key = read_key_from_file(rsa_private_key_file, 'rsa_private', password=password)
 
 # Read RSA public key from file (if needed)
 # public_key = read_key_from_file(rsa_public_key_file, 'rsa_public')
 
-# Original message to be encrypted
-original_message = b"This is a secret message."
 
 # Encrypt the message
 ciphertext_aes, tag, iv = encrypt_aes_gcm(original_message, aes_key)
